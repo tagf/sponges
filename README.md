@@ -13,9 +13,7 @@ Here are direct links to open the notebooks above using google colab:
 
 Formulas: https://colab.research.google.com/github/tagf/sponges/blob/master/sympy_eqs_potential.ipynb
 
-!Unfortunately, google colab currently does not support rendering of LaTeX formulas in computation cells (I'm continuing to check if there's a way to do that) and it's default sympy version is is not up to date. To resolve the latter issue please uncomment (remove #  from) this line:
-
-"# !pip install sympy==1.5.1"
+Unfortunately, google colab currently does not support rendering of LaTeX formulas in computation cells (I'm continuing to check if there's a way to do that) and its' default sympy version is is not up to date. To resolve the latter issue I added the package install command (!pip install sympy==1.5.1) into the notebook. If you're going to run it on your computer you may comment that command (add "# " before "!pip" in the beginning of the line)
 
 Simulation:  https://colab.research.google.com/github/tagf/sponges/blob/master/sponges_numeric.ipynb
 
