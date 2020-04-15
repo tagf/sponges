@@ -4,7 +4,7 @@
 
 [Our numerical simulation of 1D sponge using Python Numpy](/sponges_numeric.ipynb)
 
-To reproduce the results, you might want to install Anaconda
+To reproduce the results, you might want to install Anaconda https://docs.anaconda.com/anaconda/install/
 (automatically includes Python3, Spyder 4, and IPython Notebook support with JupyterNotebook / JupyterLab) on your computer.
 
 Alternatively you can try JupyterLab online: https://jupyter.org/try or https://colab.research.google.com/notebooks/intro.ipynb
