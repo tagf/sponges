@@ -1,5 +1,7 @@
 # Sponges and totally incompressible porous medium
 
+## Notebooks (they are in the same directory as this "readme" file):
+
 [Derivation of formulas using Python Sympy](/sympy_eqs_potential.ipynb)
 
 [Our numerical simulation of 1D sponge using Python Numpy](/sponges_numeric.ipynb)
