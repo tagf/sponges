@@ -4,7 +4,9 @@
 
 [Derivation of formulas using Python Sympy](/sympy_eqs_potential.ipynb)
 
-[Our numerical simulation of 1D sponge using Python Numpy](/sponges_numeric.ipynb)
+[Simulation of symmetric stress in periodic 1D sponge (sneezing) using Python Numpy](/sponges_symmetric_disturbance.ipynb)
+
+[Simulation of traveling wave propagation in periodic 1D sponge (worms) using Python Numpy](/sponges_traveling_wave.ipynb)
 
 To reproduce the results, you might want to install Anaconda https://docs.anaconda.com/anaconda/install/
 (automatically includes Python3, Spyder 4, and IPython Notebook support with JupyterNotebook / JupyterLab) on your computer.
@@ -17,7 +19,11 @@ Formulas: https://colab.research.google.com/github/tagf/sponges/blob/master/symp
 
 Unfortunately, google colab currently does not support rendering of LaTeX formulas in computation cells (I'm continuing to check if there's a way to do that) and its' default sympy version is is not up to date. To resolve the latter issue I added the package install command (!pip install sympy==1.5.1) into the notebook. If you're going to run it on your computer you may comment that command (add "# " before "!pip" in the beginning of the line)
 
-Simulation:  https://colab.research.google.com/github/tagf/sponges/blob/master/sponges_numeric.ipynb
+Open numeric simulations in Google Colab:  
+
+Sneezing sponge: https://colab.research.google.com/github/tagf/sponges/blob/master/sponges_symmetric_disturbance.ipynb
+
+Traveling worm: https://colab.research.google.com/github/tagf/sponges/blob/master/sponges_traveling_wave.ipynb
 
 
 If you use JupyterLab online, click File, then create a new notebook,
