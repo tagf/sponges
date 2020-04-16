@@ -7,6 +7,7 @@
 [Simulation of symmetric stress in periodic 1D sponge (sneezing) using Python Numpy](/sponges_symmetric_disturbance.ipynb)
 
 [Simulation of traveling wave propagation in periodic 1D sponge (worms) using Python Numpy](/sponges_traveling_wave.ipynb)
+Notice: this simulation takes about 10 min of computation time on my laptop.
 
 To reproduce the results, you might want to install Anaconda https://docs.anaconda.com/anaconda/install/
 (automatically includes Python3, Spyder 4, and IPython Notebook support with JupyterNotebook / JupyterLab) on your computer.
