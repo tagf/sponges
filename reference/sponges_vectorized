@@ -62,10 +62,13 @@ def partial2(array, bc='s'):
 
 
 def ufunc_expr(symbols, formula):
-    """Ufuncify the formula with symbols as arguments using numpy backend."""
+    """Ufuncify the formula with symbols as arguments using numpy backend.
+
+    Example: foo = ufunc_expr('x y', 'x % y')
+    """
     if isinstance(symbols, str):
         symbols = sy.symbols(symbols)
-    return ufuncify(symbols, sympify(formula))
+    return ufuncify(symbols, sympify(formula), tempdir='ufunc')
 
 
 FORMULAS = {
@@ -73,7 +76,7 @@ FORMULAS = {
         "K * (solid_t / density_s - fluid_t / density_f)",
 
     "pressure":
-        "2 * param_b * g_0 * density_f"
+        "2 * param_b * g_0 "
         " * (g_0**2 * laplace_f + (1 - g_0) * laplace_s)",
 
     "sigma_x":
@@ -83,8 +86,8 @@ FORMULAS = {
         '* (g_0**2*laplace_f + (1. - g_0)*laplace_s)',
 
     "stress":
-        'exp( -((solid + x_coord - U*time) '
-        '% (2*domain_half_length) - domain_half_length)**2'
+        'S_0 * exp(-(sin(pi'
+        ' * (solid + x_coord - U*time)/domain_half_length))**2'
         '/W**2 )'
     }
 
@@ -200,7 +203,7 @@ def time_step(time, y, *args):
     pressure_ = pressure(*(layer_data + problem_consts))
     sigma_ = sigma_x(*(layer_data + problem_consts))
 
-    stress_ = S_0 * stress(*(layer_data + problem_consts))
+    stress_ = stress(*(layer_data + problem_consts))
     stress_x = apply_(stress_, partial)/partial_x
     sigma_and_stress = stress_x + sigma_
 
@@ -225,7 +228,7 @@ def time_step(time, y, *args):
 def solve_instance():
     """Solve problem instance."""
     # pylint: disable=W0612
-    end_time = 400.
+    end_time = 120.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
