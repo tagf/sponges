@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import sympy as sy
 from sympy.core import sympify
+from sympy.parsing.latex import parse_latex
 from sympy.utilities.autowrap import ufuncify
 
 
@@ -103,8 +104,13 @@ FORMULAS = {
                                      sympify(
                                          'solid + x_coord - U*time'
                                          )
-                                     )
+                                     ),
 
+    "mu": (
+        sympify("g_0*(X_t*Y_xt - X_x*R_Y) "
+                "+ (1-g_0*Y_x)*((X_t*X_xt)/X_x - R_X)") /
+        sympify("(X_x*Y_x*g_0)/rho_f + (1-g_0*Y_x)^2/rho_s")
+        )
     }
 
 
@@ -122,10 +128,15 @@ friction = ufunc_expr(SYMB_ARGS, FORMULAS['friction'])
 pressure = ufunc_expr(SYMB_ARGS, FORMULAS['pressure'])
 sigma_x = ufunc_expr(SYMB_ARGS, FORMULAS['sigma_x'])
 stress = ufunc_expr(SYMB_ARGS, FORMULAS['stress_v0'])
+mu = ufunc_expr(SYMB_ARGS, FORMULAS['stress_v0'])
 
 dynamic = ufunc_expr('F_t, F_tx, density, laplace',
                      'F_t / density'
                      ' * (laplace * (F_t / density) - 2*F_tx)')
+
+incompr_mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
+                        'rho_s, rho_f, g_0',
+                        FORMULAS['mu'])
 
 
 # %%
@@ -223,17 +234,27 @@ def time_step(time, y, *args):
     stress_x = apply_(stress_, partial)/partial_x
     sigma_and_stress = stress_x + sigma_
 
-    delta_solid_t = (- dynamic(solid_t,
-                               apply_(solid_t, partial)/partial_x,
+    solid_xt = apply_(solid_t, partial)/partial_x
+    fluid_xt = apply_(fluid_t, partial)/partial_x
+
+    delta_solid_t = (- dynamic(solid_t, solid_xt,
                                density_s, laplace_s)
                      - (friction_
                         + pressure_
                         + sigma_and_stress) / rho_s
                      )
-    delta_fluid_t = (- dynamic(fluid_t,
-                               apply_(fluid_t, partial)/partial_x,
+    delta_fluid_t = (- dynamic(fluid_t, fluid_xt,
                                density_f, laplace_f)
                      + (friction_ + pressure_) / (g_0 * rho_f))
+
+    incompr = incompr_mu(solid_t,
+                         density_s, density_f,
+                         solid_xt, fluid_xt,
+                         delta_solid_t, delta_fluid_t,
+                         rho_s, rho_f, g_0)
+
+    delta_solid_t += incompr * (density_f * -g_0 + 1.)/rho_s
+    delta_fluid_t += incompr * density_f/rho_f
 
     return np.vstack((solid_t + nu * laplace_s,
                       delta_solid_t,
