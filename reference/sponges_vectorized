@@ -41,7 +41,6 @@ def partial(array, bc='s'):
 
 def partial2(array, bc='s'):
     """Compute the second discrete differences.
-
     The assumed inputs are X and Y.
     Example : partial2 X over x2 = partial2(solid, 's')/partial_x**2.
     """
@@ -68,7 +67,11 @@ def ufunc_expr(symbols, formula):
     """
     if isinstance(symbols, str):
         symbols = sy.symbols(symbols)
-    return ufuncify(symbols, sympify(formula), tempdir='ufunc')
+    if isinstance(formula, str):
+        formula = sympify(formula)
+    return ufuncify(symbols, formula,
+                    backend='numpy',
+                    flags=['-D_USE_MATH_DEFINES'])
 
 
 FORMULAS = {
@@ -85,10 +88,23 @@ FORMULAS = {
         '* (g_0**2*density_f + (1. - g_0)*density_s)'
         '* (g_0**2*laplace_f + (1. - g_0)*laplace_s)',
 
-    "stress":
-        'S_0 * exp(-(sin(pi'
-        ' * (solid + x_coord - U*time)/domain_half_length))**2'
-        '/W**2 )'
+
+    "stress_v0":
+        sympify('S_0 * exp( - X**2/W**2)'
+                ).subs(sy.Symbol('X'),
+                       sympify(
+                           'sign(x)*(-domain_half_length + '
+                           '(fabs(x) - domain_half_length) '
+                           '% (2.*domain_half_length))'
+                           )
+                       ).subs(sympify('sign(x)**2'),
+                              1
+                              ).subs(sy.Symbol('x'),
+                                     sympify(
+                                         'solid + x_coord - U*time'
+                                         )
+                                     )
+
     }
 
 
@@ -105,7 +121,7 @@ SYMB_ARGS += sy.symbols('rho_s, rho_f, g_0, K, '
 friction = ufunc_expr(SYMB_ARGS, FORMULAS['friction'])
 pressure = ufunc_expr(SYMB_ARGS, FORMULAS['pressure'])
 sigma_x = ufunc_expr(SYMB_ARGS, FORMULAS['sigma_x'])
-stress = ufunc_expr(SYMB_ARGS, FORMULAS['stress'])
+stress = ufunc_expr(SYMB_ARGS, FORMULAS['stress_v0'])
 
 dynamic = ufunc_expr('F_t, F_tx, density, laplace',
                      'F_t / density'
@@ -228,7 +244,7 @@ def time_step(time, y, *args):
 def solve_instance():
     """Solve problem instance."""
     # pylint: disable=W0612
-    end_time = 120.
+    end_time = 480.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
