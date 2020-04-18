@@ -78,8 +78,8 @@ FORMULAS = {
     "friction":
         "K * (solid_t / density_s - fluid_t / density_f)",
 
-    "pressure":
-        "2 * param_b * g_0 "
+    "pressure":  # TODO: Please confirm that the expression for the pressure term is correct (density_f)!
+        "2 * param_b * g_0 * density_f "
         " * (g_0**2 * laplace_f + (1 - g_0) * laplace_s)",
 
     "sigma_x":
