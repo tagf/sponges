@@ -78,8 +78,8 @@ FORMULAS = {
     "friction":
         "K * (solid_t / density_s - fluid_t / density_f)",
 
-    "pressure":
-        "2 * param_b * g_0 "
+    "pressure":  # TODO: Please confirm that the expression for the pressure term is correct (density_f)!
+        "2 * param_b * g_0 * density_f "
         " * (g_0**2 * laplace_f + (1 - g_0) * laplace_s)",
 
     "sigma_x":
@@ -290,3 +290,85 @@ def plot_densities_and_velocities(solution):
 
 
 plot_densities_and_velocities(SOLUTION)
+
+# %%
+
+
+def plot_evolution(statement, solution):
+    """Plot time dynamics."""
+    number_of_intervals, domain_half_length, time_interval = statement
+    x_coord, solid, solid_t, fluid, fluid_t = solution
+    partial_x = (x_coord[-1] - x_coord[0])/(x_coord.size - 1)
+    if False:
+        plt.plot(x_coord, solid[-1])
+        plt.show()
+
+        X, T = np.meshgrid(x_coord, time_interval)
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        # ax=fig.gca()
+        # ax1=fig.gca(projection='3d')
+        # ax.plot_surface(X,T,solid,cmap=cm.coolwarm)
+        ax1.imshow(solid,
+                   extent=[-domain_half_length, domain_half_length, 0, 10],
+                   origin='lower')
+        ax2.imshow(fluid,
+                   extent=[-domain_half_length, domain_half_length, 0, 10],
+                   origin='lower')
+        # ax.view_init(90,0)
+        ax1.set_xlabel('x')
+        ax1.set_ylabel('t')
+        ax1.set_title('Solid')
+        ax2.set_xlabel('x')
+        # ax2.set_ylabel('t')
+        ax2.set_title('Fluid')
+
+        # plt.show()
+        plt.savefig('plots/Evolution_XY.pdf')
+        plt.savefig('plots/Evolution_XY.png')
+
+    # Traveling waves
+    fig = plt.figure()
+    ax = plt.axes()
+    num_times = time_interval.size
+    time_index_min = num_times - 10
+    for j in range(time_index_min, num_times):
+        time = time_interval[j]
+        U = 1
+        X1 = np.mod(x_coord-U*time, 2*domain_half_length) - domain_half_length
+        ax.plot(X1, solid[j, :], 'o')
+    ax.set_xlabel('x-U t')
+    ax.set_ylabel('X(x,t)')
+    plt.show()
+    # plt.savefig('plots/Evolution.pdf')
+
+    rho_s, rho_f, g_0 = (1, 1.0, 0.5)
+
+    momentum_s = -rho_s*solid_t.sum(axis=1)*partial_x
+    momentum_f = -g_0 * rho_f * fluid_t.sum(axis=1)*partial_x
+
+    max_time_plot = num_times
+    index_plot = range(max_time_plot)
+
+    fig = plt.figure()
+    ax = plt.axes()
+
+    ax.plot(time_interval[index_plot],
+            momentum_s[index_plot], 'b-')
+    ax.plot(time_interval[index_plot],
+            momentum_f[index_plot], 'r-')
+    ax.plot(time_interval[index_plot],
+            momentum_s[index_plot]+momentum_f[index_plot], 'k-')
+    # plt.set_xlabel('t')
+    ax.set_title('Momentum')
+    ax.legend(('Solid', 'Fluid', 'Net'))
+    plt.savefig('All_momenta.pdf')
+    plt.savefig('All_momenta.png')
+    ax.set_xlabel('t')
+    ax.set_ylabel(r'$M_s$, $M_f$,$M_s+M_f$')
+
+    plt.show()
+    # fig.savefig('plots/Momentum.pdf')
+    # fig.savefig('plots/Momentum.png')
+
+
+plot_evolution(STATEMENT, SOLUTION)
