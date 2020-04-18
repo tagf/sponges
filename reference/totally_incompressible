@@ -203,7 +203,7 @@ def time_step(time, y, *args):
                          solid_xt, fluid_xt,
                          delta_solid_t, delta_fluid_t,
                          rho_s, rho_f, g_0)
-    incompr = incompr - incompr.mean(axis=0)
+    incompr = incompr - 0. * incompr.mean(axis=0)
 
     delta_solid_t += incompr * (density_f * -g_0 + 1.)/rho_s
     delta_fluid_t += incompr * density_f/rho_f
@@ -291,7 +291,7 @@ STATEMENT, SOLUTION = solve_instance()
 # %%
 
 
-def plot_densities_and_velocities(solution, args={'g_0': 0.5}):
+def plot_densities_and_velocities(solution, args={}):
     """Plot densities, physical and lagrangian velocities."""
     x_coord, solid, solid_t, fluid, fluid_t = solution
     partial_x = (x_coord[-1] - x_coord[0])/(x_coord.size - 1)
@@ -386,7 +386,9 @@ def plot_evolution(statement, solution):
     plt.show()
     # plt.savefig('plots/Evolution.pdf')
 
-    rho_s, rho_f, g_0 = (1, 1.0, 0.5)
+    rho_s, rho_f, g_0 = (statement.consts["rho_s"],
+                         statement.consts["rho_f"],
+                         statement.consts["g_0"],)
 
     momentum_s = -rho_s*solid_t.sum(axis=1)*partial_x
     momentum_f = -g_0 * rho_f * fluid_t.sum(axis=1)*partial_x
@@ -421,7 +423,7 @@ plot_evolution(STATEMENT, SOLUTION)
 # %% Total incomressibility diagnostic test
 
 
-def incompress_diag(solution, args={'g_0': 0.5}):
+def incompress_diag(solution, args={}):
     """Plot densities, physical and lagrangian velocities."""
     x_coord, solid, solid_t, fluid, fluid_t = solution
     partial_x = (x_coord[-1] - x_coord[0])/(x_coord.size - 1)
