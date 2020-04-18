@@ -203,7 +203,7 @@ def time_step(time, y, *args):
                          solid_xt, fluid_xt,
                          delta_solid_t, delta_fluid_t,
                          rho_s, rho_f, g_0)
-    incompr = incompr - 0. * incompr.mean(axis=0)
+    incompr = incompr - incompr.mean(axis=0)
 
     delta_solid_t += incompr * (density_f * -g_0 + 1.)/rho_s
     delta_fluid_t += incompr * density_f/rho_f
@@ -308,20 +308,17 @@ def plot_densities_and_velocities(solution, args={}):
     plt.title('Logarithms of densities')
     plt.show()
 
-    u_s = -solid_t[time_index] / (
-        partial(solid[time_index], 's')/partial_x + 1.)
-    u_f = -fluid_t[time_index] / (
-        partial(fluid[time_index], 'f')/partial_x + 1.)
+    for time_index in range(solid.shape[0] - 1):
+        u_s = -solid_t[time_index] / (
+            partial(solid[time_index], 's')/partial_x + 1.)
+        u_f = -fluid_t[time_index] / (
+            partial(fluid[time_index], 'f')/partial_x + 1.)
 
-    plt.plot(x_coord, u_s)
-    plt.plot(x_coord, u_f)
-    plt.legend(('u_s',
-                'u_f'))
-    plt.title('Physical Velocities')
-    plt.show()
+        dens_f = partial(fluid[time_index], 'f')/partial_x + 1
 
-    g_0 = args['g_0']
-    plt.plot(x_coord, g_0*dens_f*u_f + (1 - dens_f*g_0))
+        g_0 = args['g_0']
+        plt.plot(x_coord, g_0*dens_f*u_f + (1 - dens_f*g_0)*u_s)
+
     plt.legend((r'$gu_f+(1-g)u_s$', ))
     plt.title('Incomressibility expression')
     plt.show()
