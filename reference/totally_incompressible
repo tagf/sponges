@@ -203,7 +203,7 @@ def time_step(time, y, *args):
                          solid_xt, fluid_xt,
                          delta_solid_t, delta_fluid_t,
                          rho_s, rho_f, g_0)
-    incompr = incompr - incompr.mean(axis=1)
+    incompr = incompr - incompr.mean(axis=0)
 
     delta_solid_t += incompr * (density_f * -g_0 + 1.)/rho_s
     delta_fluid_t += incompr * density_f/rho_f
