@@ -341,7 +341,7 @@ plot_densities_and_velocities(SOLUTION, STATEMENT.consts)
 
 def plot_evolution(statement, solution):
     """Plot time dynamics."""
-    number_of_intervals, domain_half_length, time_interval = statement
+    number_of_intervals, domain_half_length, time_interval, _ = statement
     x_coord, solid, solid_t, fluid, fluid_t = solution
     partial_x = (x_coord[-1] - x_coord[0])/(x_coord.size - 1)
     if False:
