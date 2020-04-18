@@ -79,7 +79,9 @@ FORMULAS = {
     "friction":
         "K * (solid_t / density_s - fluid_t / density_f)",
 
-    "pressure":  # TODO: Please confirm that the expression for the pressure term is correct (density_f)!
+    # TODO: Please confirm that the expression
+    # for the pressure term is correct (density_f)!
+    "pressure":
         "2 * param_b * g_0 * density_f "
         " * (g_0**2 * laplace_f + (1 - g_0) * laplace_s)",
 
@@ -139,49 +141,7 @@ incompr_mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
                         FORMULAS['mu'])
 
 
-# %%
-
-Statement = namedtuple('ProblemStatement',
-                       ["number_of_intervals",
-                        "domain_half_length",
-                        "time_interval"])
-
-Solution = namedtuple('ProblemSolution',
-                      "x_coord, solid, solid_t, fluid, fluid_t")
-
-
-def solve(problem_statement):
-    """Solve PDE by reduction to IVP for ODE."""
-    (number_of_intervals,
-     domain_half_length,
-     time_interval) = problem_statement
-    x_coordinate = np.linspace(-domain_half_length,
-                               domain_half_length,
-                               number_of_intervals + 1)
-
-    # Solid and fluid represent alpha and beta correspondingly
-    solid = np.zeros_like(x_coordinate)
-    fluid = np.zeros_like(x_coordinate)
-    solid_t = np.zeros_like(solid)
-    fluid_t = np.zeros_like(fluid)
-
-    result = solve_ivp(time_step,
-                       (time_interval[0], time_interval[-1]),
-                       y0=np.hstack((solid, solid_t, fluid, fluid_t)),
-                       method='LSODA',
-                       t_eval=time_interval,  # time_interval,
-                       vectorized=True,
-                       args=(x_coordinate,)
-                       )
-
-    if not isinstance(time_interval, np.ndarray):
-        plt.plot(result.t)
-        plt.title('Time (y) vs time steps (x).')
-        plt.show()
-
-    return Solution(x_coordinate,
-                    *np.split(result.y.T, 4, axis=1))
-
+# %% Time step definition
 
 time_step_counter = 0
 multipl_counter = 0
@@ -199,15 +159,7 @@ def time_step(time, y, *args):
                               (args[0].size, y.shape[1]))
     domain_half_length = x_coord[-1, 0]
     partial_x = 2.*domain_half_length/(x_coord.size - 1)
-    rho_s = 1.
-    rho_f = 1.
-    g_0 = 0.5
-    K = 1
-    param_a = 1.
-    param_b = 1.0
-    S_0 = 0.1
-    nu = 0.0
-    W, U = 1, 1
+    (rho_s, rho_f, g_0, K, param_a, param_b, S_0, nu, W, U) = args[1]
 
     def apply_(arr, func):
         cols = range(arr.shape[1])
@@ -261,15 +213,75 @@ def time_step(time, y, *args):
                       fluid_t + nu * laplace_f,
                       delta_fluid_t))
 
+# %%
+
+
+Statement = namedtuple('ProblemStatement',
+                       ["number_of_intervals",
+                        "domain_half_length",
+                        "time_interval",
+                        "consts"])
+
+Solution = namedtuple('ProblemSolution',
+                      "x_coord, solid, solid_t, fluid, fluid_t")
+
+
+def solve(problem_statement):
+    """Solve PDE by reduction to IVP for ODE."""
+    (number_of_intervals,
+     domain_half_length,
+     time_interval,
+     consts) = problem_statement
+    x_coordinate = np.linspace(-domain_half_length,
+                               domain_half_length,
+                               number_of_intervals + 1)
+
+    # Solid and fluid represent alpha and beta correspondingly
+    solid = np.zeros_like(x_coordinate)
+    fluid = np.zeros_like(x_coordinate)
+    solid_t = np.zeros_like(solid)
+    fluid_t = np.zeros_like(fluid)
+
+    result = solve_ivp(time_step,
+                       (time_interval[0], time_interval[-1]),
+                       y0=np.hstack((solid, solid_t, fluid, fluid_t)),
+                       method='LSODA',
+                       t_eval=time_interval,  # time_interval,
+                       vectorized=True,
+                       args=(x_coordinate,
+                             np.array(list(consts.values())))
+                       )
+
+    if not isinstance(time_interval, np.ndarray):
+        plt.plot(result.t)
+        plt.title('Time (y) vs time steps (x).')
+        plt.show()
+
+    return Solution(x_coordinate,
+                    *np.split(result.y.T, 4, axis=1))
+
 
 def solve_instance():
     """Solve problem instance."""
     # pylint: disable=W0612
-    end_time = 480.
+    consts = {
+        "rho_s": 1.,
+        "rho_f": 1.,
+        "g_0": 0.8,
+        "K": 1,
+        "param_a": 1.,
+        "param_b": 1.0,
+        "S_0": 0.1,
+        "nu": 0.0,
+        "W": 1.,
+        "U": 1.,
+    }
+    end_time = 50.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
-                                                    int(1.024 * end_time)))
+                                                    int(1.024 * end_time)),
+                          consts=consts)
 
     return statement, solve(statement)
 
@@ -279,27 +291,39 @@ STATEMENT, SOLUTION = solve_instance()
 # %%
 
 
-def plot_densities_and_velocities(solution):
+def plot_densities_and_velocities(solution, args={'g_0': 0.5}):
     """Plot densities, physical and lagrangian velocities."""
     x_coord, solid, solid_t, fluid, fluid_t = solution
     partial_x = (x_coord[-1] - x_coord[0])/(x_coord.size - 1)
     time_index = solid.shape[0] - 1
 
+    dens_s = partial(solid[time_index], 's')/partial_x + 1
+    dens_f = partial(fluid[time_index], 'f')/partial_x + 1
+
     # plt.plot(x_coord, sigma_and_stress_term(0, solid + x_coordinate))
-    plt.plot(x_coord, np.log(partial(solid[time_index], 's')/partial_x + 1))
-    plt.plot(x_coord, np.log(partial(fluid[time_index], 'f')/partial_x + 1))
+    plt.plot(x_coord, np.log(dens_s))
+    plt.plot(x_coord, np.log(dens_f))
     plt.legend(('density of Solid',
                 'density of Fluid'))
     plt.title('Logarithms of densities')
     plt.show()
 
-    plt.plot(x_coord, -solid_t[time_index] /
-             (partial(solid[time_index], 's')/partial_x + 1.))
-    plt.plot(x_coord, -fluid_t[time_index] /
-             (partial(fluid[time_index], 'f')/partial_x + 1.))
+    u_s = -solid_t[time_index] / (
+        partial(solid[time_index], 's')/partial_x + 1.)
+    u_f = -fluid_t[time_index] / (
+        partial(fluid[time_index], 'f')/partial_x + 1.)
+
+    plt.plot(x_coord, u_s)
+    plt.plot(x_coord, u_f)
     plt.legend(('u_s',
                 'u_f'))
     plt.title('Physical Velocities')
+    plt.show()
+
+    g_0 = args['g_0']
+    plt.plot(x_coord, g_0*dens_f*u_f + (1 - dens_f*g_0))
+    plt.legend((r'$gu_f+(1-g)u_s$', ))
+    plt.title('Incomressibility expression')
     plt.show()
 
     plt.plot(x_coord, solid_t[time_index])
@@ -310,7 +334,7 @@ def plot_densities_and_velocities(solution):
     plt.show()
 
 
-plot_densities_and_velocities(SOLUTION)
+plot_densities_and_velocities(SOLUTION, STATEMENT.consts)
 
 # %%
 
@@ -393,3 +417,30 @@ def plot_evolution(statement, solution):
 
 
 plot_evolution(STATEMENT, SOLUTION)
+
+# %% Total incomressibility diagnostic test
+
+
+def incompress_diag(solution, args={'g_0': 0.5}):
+    """Plot densities, physical and lagrangian velocities."""
+    x_coord, solid, solid_t, fluid, fluid_t = solution
+    partial_x = (x_coord[-1] - x_coord[0])/(x_coord.size - 1)
+    time_index = solid.shape[0] - 1
+
+    def apply_(arr, func):
+        rows = range(arr.shape[0])
+        return np.vstack([func(arr[i, :], 's') for i in rows])
+
+    density_s = apply_(solid, partial)/partial_x + 1.
+    density_f = apply_(fluid, partial)/partial_x + 1.
+
+    plt.plot(x_coord,
+             (1 - args['g_0'])*density_s[time_index]
+             + args['g_0']*density_f[time_index])
+
+    plt.legend('Sum of densities')
+    plt.title('Sum of densities')
+    plt.show()
+
+
+incompress_diag(SOLUTION, STATEMENT.consts)
