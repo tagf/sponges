@@ -289,12 +289,12 @@ def solve_instance():
         "K": 1,
         "param_a": 1.,
         "param_b": 1.0,
-        "S_0": 0.1,
+        "S_0": 0.2,
         "nu": 0.0,
         "W": 1.,
         "U": 1.,
     }
-    end_time = 100.
+    end_time = 300.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
