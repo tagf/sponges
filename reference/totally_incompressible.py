@@ -159,8 +159,8 @@ stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_v0'])
 # sigma_x = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['sigma_x'])
 
 pressure = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
-                      FORMULAS['p_x_times_g0_Y_x'])
-sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['_sigma_x'])
+                      FORMULAS['new_p_x_times_g0_Y_x'])
+sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['new_sigma_x'])
 
 
 dynamic = ufunc_expr('F_t, F_tx, density, laplace',
