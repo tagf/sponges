@@ -55,6 +55,7 @@ def partial(array, bc='s'):
 
 def partial2(array, bc='s'):
     """Compute the second discrete differences.
+
     The assumed inputs are X and Y.
     Example : partial2 X over x2 = partial2(solid, 's')/partial_x**2.
     """
@@ -72,20 +73,6 @@ def partial2(array, bc='s'):
     else:
         raise ValueError("Please specify valid boundary conditions.")
     return result
-
-
-def ufunc_expr(symbols, formula):
-    """Ufuncify the formula with symbols as arguments using numpy backend.
-
-    Example: foo = ufunc_expr('x y', 'x % y')
-    """
-    if isinstance(symbols, str):
-        symbols = sy.symbols(symbols)
-    if isinstance(formula, str):
-        formula = sympify(formula)
-    return ufuncify(symbols, formula,
-                    backend='numpy',
-                    flags=['-D_USE_MATH_DEFINES'])
 
 
 FORMULAS = {
@@ -115,16 +102,38 @@ FORMULAS = {
         sympify("(X_x*Y_x*g_0)/rho_f + (1-g_0*Y_x)^2/rho_s")
         ),
 
-    "p_x_times_g0_Y_x":
+    # TODO: Please confirm that the expression
+    # for the pressure term is correct (density_f)!
+    "pressure":
+        "2 * param_b * g_0 * density_f "
+        " * (g_0**2 * laplace_f + (1 - g_0) * laplace_s)",
+
+    "sigma_x":
+        '- 2. * param_a * density_s * laplace_s'
+        '- 2. * param_b'
+        '* (g_0**2*density_f + (1. - g_0)*density_s)'
+        '* (g_0**2*laplace_f + (1. - g_0)*laplace_s)',
+
+    "_p_x_times_g0_Y_x":
+        "param_b * g_0 * Y_x "
+        " * (g_0**2*Y_xx + (1 - g_0)*X_xx)",
+
+    "_sigma_x":
+        '- param_a * X_x * X_xx'
+        '- param_b'
+        '* (g_0**2*Y_x + (1. - g_0)*X_x)'
+        '* (g_0**2*Y_xx + (1. - g_0)*X_xx)',
+
+    "new_p_x_times_g0_Y_x":
         '(g_0 * Y_x) '
         '* -X_xx*param_a*(X_x - 1.)',
 
-    "sigma":
+    "new_sigma":
         "0.5*param_a*(X_x - 1.)*((2.*g_0*Y_x - 1.)*X_x - 1.)",
 
-    "sigma_x":
-        'param_a*Y_xx*X_x*g_0*(X_x - 1.0) '
-        '+ X_xx*((2.0*X_x - 1.0)*(Y_x*g_0 - 0.5) - 0.5)'
+    "new_sigma_x":
+        'param_a*(Y_xx*X_x*g_0*(X_x - 1.0) '
+        '+ X_xx*((2.0*X_x - 1.0)*(Y_x*g_0 - 0.5) - 0.5))'
         }
 
 
@@ -145,9 +154,9 @@ SYMB_CONSTS = sy.symbols('rho_s, rho_f, g_0, K, '
 friction = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['friction'])
 stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_v0'])
 
-pressure = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
-                      FORMULAS['p_x_times_g0_Y_x'])
-sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['sigma_x'])
+pressure = ufunc_expr(SYMB_ARGS + SYMB_CONSTS,
+                      FORMULAS['pressure'])
+sigma_x = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['sigma_x'])
 
 dynamic = ufunc_expr('F_t, F_tx, density, laplace',
                      'F_t / density'
@@ -285,7 +294,7 @@ def solve_instance():
         "W": 1.,
         "U": 1.,
     }
-    end_time = 25.
+    end_time = 100.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
