@@ -7,6 +7,7 @@ Created on Thu Apr  9 15:41:43 2020.
 """
 
 from collections import namedtuple
+import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
@@ -80,7 +81,7 @@ FORMULAS = {
         "K * (solid_t / density_s - fluid_t / density_f)",
 
 
-    "stress_v0":
+    "stress_tv":
         sympify('S_0 * exp( - X**2/W**2)'
                 ).subs(sy.Symbol('X'),
                        sympify(
@@ -96,6 +97,10 @@ FORMULAS = {
                                          )
                                      ),
 
+    "stress_sponge":
+        sympify('S_0 * exp( - (solid + x_coord)**2/W**2'
+                ' - time/ U )'),
+
     "mu": (
         sympify("g_0*(X_t*Y_xt - X_x*R_Y) "
                 "+ (1-g_0*Y_x)*((X_t*X_xt)/X_x - R_X)") /
@@ -104,21 +109,21 @@ FORMULAS = {
 
     # TODO: Please confirm that the expression
     # for the pressure term is correct (density_f)!
-    "pressure":
+    "old_pressure":
         "param_b * g_0 * density_f "
         " * (g_0 * laplace_f + (1 - g_0) * laplace_s)",
 
-    "sigma_x":
+    "old_sigma_x":
         '- param_a * density_s * laplace_s'
         '- param_b'
         '* (g_0*density_f + (1. - g_0)*density_s)'
         '* (g_0*laplace_f + (1. - g_0)*laplace_s)',
 
-    "p_x_times_g0_Y_x":
+    "old_p_x_times_g0_Y_x":
         "param_b * g_0 * Y_x "
         " * (g_0*Y_xx + (1 - g_0)*X_xx)",
 
-    "_sigma_x":
+    "old_sigma_x(X, Y)":
         '- param_a * X_x * X_xx'
         '- param_b'
         '* (g_0*Y_x + (1. - g_0)*X_x)'
@@ -151,8 +156,21 @@ SYMB_CONSTS = sy.symbols('rho_s, rho_f, g_0, K, '
                          'param_a, param_b, S_0, nu, W, U,'
                          'domain_half_length')
 
+stress = None
+version = input("Please enter which stress to compile:\n"
+                "'sponge' or 'tv'? >>>")
+if version == 'sponge':
+    print("You've selected sponge stress")
+    stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_sponge'])
+elif version == 'tv':
+    print("You've selected traveling wave stress")
+    stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_tv'])
+else:
+    print("Your selection was not recognized, assuming sponge")
+    stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_sponge'])
+
+print("Compilation of ufuncs started...")
 friction = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['friction'])
-stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_v0'])
 
 # pressure = ufunc_expr(SYMB_ARGS + SYMB_CONSTS,
 #                       FORMULAS['pressure'])
@@ -161,7 +179,7 @@ stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_v0'])
 pressure = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
                       FORMULAS['new_p_x_times_g0_Y_x'])
 sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['new_sigma_x'])
-
+sigma = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['new_sigma'])
 
 dynamic = ufunc_expr('F_t, F_tx, density, laplace',
                      'F_t / density'
@@ -170,6 +188,13 @@ dynamic = ufunc_expr('F_t, F_tx, density, laplace',
 incompr_mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
                         'rho_s, rho_f, g_0',
                         FORMULAS['mu'])
+
+print("Compilation of ufuncs succeeded!")
+
+DIFF_SIGMA_TO_CRASH = False
+if DIFF_SIGMA_TO_CRASH:
+    warnings.warn("TF: You chose to differentiate Sigma numerically!",
+                  UserWarning)
 
 
 # %% Time step definition
@@ -202,7 +227,14 @@ def time_step(time, y, *args):
 
     friction_ = friction(*(layer_data + problem_consts))
     pressure_ = pressure(*(layer_data + problem_consts))
-    sigma_ = sigma_x(*(layer_data + problem_consts))
+
+    sigma_ = None
+    if not DIFF_SIGMA_TO_CRASH:
+        sigma_ = sigma_x(*(layer_data + problem_consts))
+    else:
+        sigma_ = apply_(
+            sigma(*(layer_data + problem_consts)),
+            partial)/partial_x
 
     stress_ = stress(*(layer_data + problem_consts))
     stress_x = apply_(stress_, partial)/partial_x
@@ -299,7 +331,7 @@ def solve_instance():
         "W": 1.,
         "U": 1.,
     }
-    end_time = 500.
+    end_time = 50.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
@@ -365,9 +397,10 @@ def plot_evolution(statement, solution):
     number_of_intervals, domain_half_length, time_interval, _ = statement
     x_coord, solid, solid_t, fluid, fluid_t = solution
     partial_x = (x_coord[-1] - x_coord[0])/(x_coord.size - 1)
-    if False:
-        plt.plot(x_coord, solid[-1])
-        plt.show()
+
+    def plot2d():
+        # plt.plot(x_coord, solid[-1])
+        # plt.show()
 
         X, T = np.meshgrid(x_coord, time_interval)
         fig, (ax1, ax2) = plt.subplots(1, 2)
@@ -388,9 +421,11 @@ def plot_evolution(statement, solution):
         # ax2.set_ylabel('t')
         ax2.set_title('Fluid')
 
-        # plt.show()
-        plt.savefig('plots/Evolution_XY.pdf')
-        plt.savefig('plots/Evolution_XY.png')
+        # plt.savefig('plots/Evolution_XY.pdf')
+        # plt.savefig('plots/Evolution_XY.png')
+        plt.show()
+
+    plot2d()
 
     # Traveling waves
     fig = plt.figure()
