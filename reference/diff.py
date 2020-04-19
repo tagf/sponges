@@ -8,7 +8,6 @@ Created on Thu Apr  9 15:41:43 2020.
 
 from collections import namedtuple
 import numpy as np
-# import matplotlib
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import sympy as sy
@@ -16,7 +15,22 @@ from sympy.core import sympify
 from sympy.utilities.autowrap import ufuncify
 
 
-# %%
+# %% Technical and term definitions
+
+def ufunc_expr(symbols, formula):
+    """Ufuncify the formula with symbols as arguments using numpy backend.
+
+    Example: foo = ufunc_expr('x y', 'x % y')
+    """
+    if isinstance(symbols, str):
+        symbols = sy.symbols(symbols)
+    if isinstance(formula, str):
+        formula = sympify(formula)
+    return ufuncify(symbols, formula,
+                    backend='numpy',
+                    flags=['-D_USE_MATH_DEFINES'])
+
+
 def partial(array, bc='s'):
     """Compute central discrete differences.
 
@@ -41,6 +55,7 @@ def partial(array, bc='s'):
 
 def partial2(array, bc='s'):
     """Compute the second discrete differences.
+
     The assumed inputs are X and Y.
     Example : partial2 X over x2 = partial2(solid, 's')/partial_x**2.
     """
@@ -60,35 +75,9 @@ def partial2(array, bc='s'):
     return result
 
 
-def ufunc_expr(symbols, formula):
-    """Ufuncify the formula with symbols as arguments using numpy backend.
-
-    Example: foo = ufunc_expr('x y', 'x % y')
-    """
-    if isinstance(symbols, str):
-        symbols = sy.symbols(symbols)
-    if isinstance(formula, str):
-        formula = sympify(formula)
-    return ufuncify(symbols, formula,
-                    backend='numpy',
-                    flags=['-D_USE_MATH_DEFINES'])
-
-
 FORMULAS = {
     "friction":
         "K * (solid_t / density_s - fluid_t / density_f)",
-
-    # TODO: Please confirm that the expression
-    # for the pressure term is correct (density_f)!
-    "pressure":
-        "2 * param_b * g_0 * density_f "
-        " * (g_0**2 * laplace_f + (1 - g_0) * laplace_s)",
-
-    "sigma_x":
-        '- 2. * param_a * density_s * laplace_s'
-        '- 2. * param_b'
-        '* (g_0**2*density_f + (1. - g_0)*density_s)'
-        '* (g_0**2*laplace_f + (1. - g_0)*laplace_s)',
 
 
     "stress_v0":
@@ -111,25 +100,63 @@ FORMULAS = {
         sympify("g_0*(X_t*Y_xt - X_x*R_Y) "
                 "+ (1-g_0*Y_x)*((X_t*X_xt)/X_x - R_X)") /
         sympify("(X_x*Y_x*g_0)/rho_f + (1-g_0*Y_x)^2/rho_s")
-        )
-    }
+        ),
+
+    # TODO: Please confirm that the expression
+    # for the pressure term is correct (density_f)!
+    "pressure":
+        "2 * param_b * g_0 * density_f "
+        " * (g_0**2 * laplace_f + (1 - g_0) * laplace_s)",
+
+    "sigma_x":
+        '- 2. * param_a * density_s * laplace_s'
+        '- 2. * param_b'
+        '* (g_0**2*density_f + (1. - g_0)*density_s)'
+        '* (g_0**2*laplace_f + (1. - g_0)*laplace_s)',
+
+    "_p_x_times_g0_Y_x":
+        "param_b * g_0 * Y_x "
+        " * (g_0**2*Y_xx + (1 - g_0)*X_xx)",
+
+    "_sigma_x":
+        '- param_a * X_x * X_xx'
+        '- param_b'
+        '* (g_0**2*Y_x + (1. - g_0)*X_x)'
+        '* (g_0**2*Y_xx + (1. - g_0)*X_xx)',
+
+    "new_p_x_times_g0_Y_x":
+        '(g_0 * Y_x) '
+        '* -X_xx*param_a*(X_x - 1.)',
+
+    "new_sigma":
+        "0.5*param_a*(X_x - 1.)*((2.*g_0*Y_x - 1.)*X_x - 1.)",
+
+    "new_sigma_x":
+        'param_a*(Y_xx*X_x*g_0*(X_x - 1.0) '
+        '+ X_xx*((2.0*X_x - 1.0)*(Y_x*g_0 - 0.5) - 0.5))'
+        }
 
 
-# Variables
+# Variable names
 SYMB_ARGS = sy.symbols("time, x_coord, "
                        "solid, solid_t, density_s, laplace_s,"
                        "fluid, fluid_t, density_f, laplace_f")
 
-# Constants
-SYMB_ARGS += sy.symbols('rho_s, rho_f, g_0, K, '
-                        'param_a, param_b, S_0, nu, W, U,'
-                        'domain_half_length')
+SY_ARG_XY = sy.symbols("t, x, "
+                       "xi, X_t, X_x, X_xx,"
+                       "eta, Y_t, Y_x, Y_xx")
 
-friction = ufunc_expr(SYMB_ARGS, FORMULAS['friction'])
-pressure = ufunc_expr(SYMB_ARGS, FORMULAS['pressure'])
-sigma_x = ufunc_expr(SYMB_ARGS, FORMULAS['sigma_x'])
-stress = ufunc_expr(SYMB_ARGS, FORMULAS['stress_v0'])
-mu = ufunc_expr(SYMB_ARGS, FORMULAS['stress_v0'])
+# Constant names
+SYMB_CONSTS = sy.symbols('rho_s, rho_f, g_0, K, '
+                         'param_a, param_b, S_0, nu, W, U,'
+                         'domain_half_length')
+
+friction = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['friction'])
+stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_v0'])
+
+pressure = ufunc_expr(SYMB_ARGS + SYMB_CONSTS,
+                      FORMULAS['pressure'])
+sigma_x = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['sigma_x'])
 
 dynamic = ufunc_expr('F_t, F_tx, density, laplace',
                      'F_t / density'
@@ -141,18 +168,9 @@ incompr_mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
 
 
 # %% Time step definition
-
-time_step_counter = 0
-multipl_counter = 0
-
-
 def time_step(time, y, *args):
     """Compute one time step."""
     # pylint: disable=R0914
-    global time_step_counter, multipl_counter
-    time_step_counter += 1
-    multipl_counter += y.shape[1]
-
     solid, solid_t, fluid, fluid_t = np.split(y, 4)
     x_coord = np.broadcast_to(args[0].reshape(-1, 1),
                               (args[0].size, y.shape[1]))
@@ -271,12 +289,12 @@ def solve_instance():
         "K": 1,
         "param_a": 1.,
         "param_b": 1.0,
-        "S_0": 0.1,
+        "S_0": 0.2,
         "nu": 0.0,
         "W": 1.,
         "U": 1.,
     }
-    end_time = 50.
+    end_time = 300.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
@@ -308,6 +326,7 @@ def plot_densities_and_velocities(solution, args={}):
     plt.title('Logarithms of densities')
     plt.show()
 
+    # Incomressibility layers, demonstrating C(t)
     for time_index in range(solid.shape[0] - 1):
         u_s = -solid_t[time_index] / (
             partial(solid[time_index], 's')/partial_x + 1.)
