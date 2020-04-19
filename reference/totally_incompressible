@@ -8,7 +8,6 @@ Created on Thu Apr  9 15:41:43 2020.
 
 from collections import namedtuple
 import numpy as np
-# import matplotlib
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import sympy as sy
@@ -17,6 +16,21 @@ from sympy.utilities.autowrap import ufuncify
 
 
 # %% Technical and term definitions
+
+def ufunc_expr(symbols, formula):
+    """Ufuncify the formula with symbols as arguments using numpy backend.
+
+    Example: foo = ufunc_expr('x y', 'x % y')
+    """
+    if isinstance(symbols, str):
+        symbols = sy.symbols(symbols)
+    if isinstance(formula, str):
+        formula = sympify(formula)
+    return ufuncify(symbols, formula,
+                    backend='numpy',
+                    flags=['-D_USE_MATH_DEFINES'])
+
+
 def partial(array, bc='s'):
     """Compute central discrete differences.
 
@@ -103,11 +117,14 @@ FORMULAS = {
 
     "p_x_times_g0_Y_x":
         '(g_0 * Y_x) '
-        '* -X_xx*g_0*param_a*(X_x - 1.)',
+        '* -X_xx*param_a*(X_x - 1.)',
+
+    "sigma":
+        "0.5*param_a*(X_x - 1.)*((2.*g_0*Y_x - 1.)*X_x - 1.)",
 
     "sigma_x":
-        'param_a*Y_xx*X_x*g_0**2*(X_x - 1.0) '
-        '+ X_xx*((2.0*X_x - 1.0)*(Y_x*g_0**2 - 0.5) - 0.5)'
+        'param_a*Y_xx*X_x*g_0*(X_x - 1.0) '
+        '+ X_xx*((2.0*X_x - 1.0)*(Y_x*g_0 - 0.5) - 0.5)'
         }
 
 
@@ -268,7 +285,7 @@ def solve_instance():
         "W": 1.,
         "U": 1.,
     }
-    end_time = 250.
+    end_time = 25.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
