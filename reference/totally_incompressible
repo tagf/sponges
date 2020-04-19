@@ -106,12 +106,12 @@ FORMULAS = {
         '* -X_xx*g_0*param_a*(X_x - 1.)',
 
     "sigma_x":
-        'Y_xx*X_x*g_0**2*(X_x - 1.0) '
+        'param_a*Y_xx*X_x*g_0**2*(X_x - 1.0) '
         '+ X_xx*((2.0*X_x - 1.0)*(Y_x*g_0**2 - 0.5) - 0.5)'
         }
 
 
-# Variables
+# Variable names
 SYMB_ARGS = sy.symbols("time, x_coord, "
                        "solid, solid_t, density_s, laplace_s,"
                        "fluid, fluid_t, density_f, laplace_f")
@@ -120,7 +120,7 @@ SY_ARG_XY = sy.symbols("t, x, "
                        "xi, X_t, X_x, X_xx,"
                        "eta, Y_t, Y_x, Y_xx")
 
-# Constants
+# Constant names
 SYMB_CONSTS = sy.symbols('rho_s, rho_f, g_0, K, '
                          'param_a, param_b, S_0, nu, W, U,'
                          'domain_half_length')
@@ -268,7 +268,7 @@ def solve_instance():
         "W": 1.,
         "U": 1.,
     }
-    end_time = 50.
+    end_time = 250.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
@@ -300,6 +300,7 @@ def plot_densities_and_velocities(solution, args={}):
     plt.title('Logarithms of densities')
     plt.show()
 
+    # Incomressibility layers, demonstrating C(t)
     for time_index in range(solid.shape[0] - 1):
         u_s = -solid_t[time_index] / (
             partial(solid[time_index], 's')/partial_x + 1.)
