@@ -107,36 +107,24 @@ FORMULAS = {
         sympify("(X_x*Y_x*g_0)/rho_f + (1-g_0*Y_x)^2/rho_s")
         ),
 
-    # TODO: Please confirm that the expression
-    # for the pressure term is correct (density_f)!
-    "old_pressure":
-        "param_b * g_0 * density_f "
-        " * (g_0 * laplace_f + (1 - g_0) * laplace_s)",
+    "mu_corr":
+        sympify("X_x / "
+                "(X_x*Y_x*g_0)/rho_f + (g_0*Y_x - 1.)^2/rho_s"),
 
-    "old_sigma_x":
-        '- param_a * density_s * laplace_s'
-        '- param_b'
-        '* (g_0*density_f + (1. - g_0)*density_s)'
-        '* (g_0*laplace_f + (1. - g_0)*laplace_s)',
-
-    "old_p_x_times_g0_Y_x":
+    "p_x_times_g0_Y_x":
         "param_b * g_0 * Y_x "
         " * (g_0*Y_xx + (1 - g_0)*X_xx)",
 
-    "old_sigma_x(X, Y)":
+    "sigma":
+        "- 0.5*param_a*(X_x**2 - 1.) "
+        "- param_b*((X_x*(1 - g_0) + Y_x*g_0)**2 - 1.)",
+
+    "sigma_x":
         '- param_a * X_x * X_xx'
         '- param_b'
         '* (g_0*Y_x + (1. - g_0)*X_x)'
         '* (g_0*Y_xx + (1. - g_0)*X_xx)',
 
-    "new_p_x_times_g0_Y_x":
-        '0',
-
-    "new_sigma":
-        "0.5*param_a*(X_x**2 - 1.)",
-
-    "new_sigma_x":
-        '-param_a*X_x*X_xx'
         }
 
 
@@ -155,39 +143,54 @@ SYMB_CONSTS = sy.symbols('rho_s, rho_f, g_0, K, '
                          'domain_half_length')
 
 stress = None
+END_TIME = 0.
 version = input("Please enter which stress to compile:\n"
                 "'sponge' or 'tv'? >>>")
 if version == 'sponge':
     print("You've selected sponge stress")
     stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_sponge'])
+    END_TIME = 8.
 elif version == 'tv':
     print("You've selected traveling wave stress")
     stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_tv'])
+    END_TIME = 50.
 else:
     print("Your selection was not recognized, assuming sponge")
     stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_sponge'])
+    END_TIME = 8.
 
-print("Compilation of ufuncs started...")
-friction = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['friction'])
+end_time_new = input("Current END_TIME=%g. Enter new time\n"
+                     "or keep current (press enter) >>>" % END_TIME)
+if len(end_time_new):
+    END_TIME = float(end_time_new)
 
-# pressure = ufunc_expr(SYMB_ARGS + SYMB_CONSTS,
-#                       FORMULAS['pressure'])
-# sigma_x = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['sigma_x'])
 
-pressure = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
-                      FORMULAS['new_p_x_times_g0_Y_x'])
-sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['new_sigma_x'])
-sigma = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['new_sigma'])
+if "friction" not in locals():
+    print("Compilation of ufuncs started...")
+    global friction, pressure, sigma_x, sigma, mu, mu_corr, dynamic
+    friction = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['friction'])
+    pressure = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
+                          FORMULAS['p_x_times_g0_Y_x'])
+    sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
+                         FORMULAS['sigma_x'])
+    sigma = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
+                       FORMULAS['sigma'])
 
-dynamic = ufunc_expr('F_t, F_tx, density, laplace',
-                     'F_t / density'
-                     ' * (laplace * (F_t / density) - 2*F_tx)')
+    mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
+                    'rho_s, rho_f, g_0',
+                    FORMULAS['mu'])
 
-incompr_mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
-                        'rho_s, rho_f, g_0',
-                        FORMULAS['mu'])
+    mu_corr = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
+                         'rho_s, rho_f, g_0',
+                         FORMULAS['mu_corr'])
 
-print("Compilation of ufuncs succeeded!")
+    dynamic = ufunc_expr('F_t, F_tx, density, laplace',
+                         'F_t / density'
+                         ' * (laplace * (F_t / density) - 2*F_tx)')
+    print("Compilation of ufuncs succeeded!")
+else:
+    print("Ufuncs are already compiled!")
+
 
 DIFF_SIGMA_TO_CRASH = False
 if DIFF_SIGMA_TO_CRASH:
@@ -206,14 +209,14 @@ def time_step(time, y, *args):
     partial_x = 2.*domain_half_length/(x_coord.size - 1)
     (rho_s, rho_f, g_0, K, param_a, param_b, S_0, nu, W, U) = args[1]
 
-    def apply_(arr, func):
+    def apply_(arr, func, bc='s'):
         cols = range(arr.shape[1])
-        return np.vstack([func(arr[:, i].T, 's') for i in cols]).T
+        return np.vstack([func(arr[:, i].T, bc) for i in cols]).T
 
-    density_s = apply_(solid, partial)/partial_x + 1.
-    density_f = apply_(fluid, partial)/partial_x + 1.
-    laplace_s = apply_(solid, partial2)/partial_x**2
-    laplace_f = apply_(fluid, partial2)/partial_x**2
+    density_s = apply_(solid, partial, 's')/partial_x + 1.
+    density_f = apply_(fluid, partial, 'f')/partial_x + 1.
+    laplace_s = apply_(solid, partial2, 's')/partial_x**2
+    laplace_f = apply_(fluid, partial2, 'f')/partial_x**2
 
     layer_data = (time, x_coord,
                   solid, solid_t, density_s, laplace_s,
@@ -238,8 +241,8 @@ def time_step(time, y, *args):
     stress_x = apply_(stress_, partial)/partial_x
     sigma_and_stress = stress_x + sigma_
 
-    solid_xt = apply_(solid_t, partial)/partial_x
-    fluid_xt = apply_(fluid_t, partial)/partial_x
+    solid_xt = apply_(solid_t, partial, 's')/partial_x
+    fluid_xt = apply_(fluid_t, partial, 'f')/partial_x
 
     delta_solid_t = (- dynamic(solid_t, solid_xt,
                                density_s, laplace_s)
@@ -251,16 +254,19 @@ def time_step(time, y, *args):
                                density_f, laplace_f)
                      + (friction_ + pressure_) / (g_0 * rho_f))
 
-    incompr = incompr_mu(solid_t,
-                         density_s, density_f,
-                         solid_xt, fluid_xt,
-                         delta_solid_t, delta_fluid_t,
-                         rho_s, rho_f, g_0)
-    #incompr = incompr - incompr.mean(axis=0)
-    denominator=density_s*density_f*g_0/rho_f+(1-density_f*g_0)**2/rho_s
-    B=density_s/denominator 
-    dCdt=-(incompr.mean(axis=0)/B.mean(axis=0))
-    incompr=incompr+dCdt*B
+    incompr = mu(solid_t,
+                 density_s, density_f,
+                 solid_xt, fluid_xt,
+                 delta_solid_t, delta_fluid_t,
+                 rho_s, rho_f, g_0)
+    incompr_corr = mu_corr(solid_t,
+                           density_s, density_f,
+                           solid_xt, fluid_xt,
+                           delta_solid_t, delta_fluid_t,
+                           rho_s, rho_f, g_0)
+    incompr = incompr - incompr_corr * (
+        incompr.mean(axis=0) / incompr_corr.mean(axis=0)
+        )
 
     delta_solid_t += incompr * (density_f * -g_0 + 1.)/rho_s
     delta_fluid_t += incompr * density_f/rho_f
@@ -324,16 +330,16 @@ def solve_instance():
     consts = {
         "rho_s": 1.,
         "rho_f": 1.,
-        "g_0": 0.5,
-        "K": 1,
-        "param_a": 1.,
-        "param_b": 1.0,
-        "S_0": 0.1,
+        "g_0": 0.8,
+        "K": 1.,
+        "param_a": 1.0,
+        "param_b": 0.0,
+        "S_0": 0.2,
         "nu": 0.0,
         "W": 1.,
         "U": 1.,
     }
-    end_time = 500.
+    end_time = END_TIME
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
@@ -366,51 +372,28 @@ def plot_densities_and_velocities(solution, args={}):
     plt.show()
 
     # Incomressibility layers, demonstrating C(t)
-    g_0 = args['g_0']
-    C=np.zeros(solid.shape[0])
-    for time_index in range(solid.shape[0] ):
+    for time_index in range(solid.shape[0] - 1):
         u_s = -solid_t[time_index] / (
             partial(solid[time_index], 's')/partial_x + 1.)
         u_f = -fluid_t[time_index] / (
             partial(fluid[time_index], 'f')/partial_x + 1.)
 
         dens_f = partial(fluid[time_index], 'f')/partial_x + 1
-        incompressible_var=g_0*dens_f*u_f + (1 - dens_f*g_0)*u_s
-        C[time_index]=incompressible_var.mean() 
 
-        plt.plot(x_coord,incompressible_var)
-    
-    
-    ax=plt.axes() 
-    ax.set_xlabel('x')
-    ax.set_ylabel('Incompressibility')
+        g_0 = args['g_0']
+        plt.plot(x_coord, g_0*dens_f*u_f + (1 - dens_f*g_0)*u_s)
 
-    ax.legend((r'$gu_f+(1-g)u_s$', ))
-    ax.set_title('Incompressibility variable')
-    #plt.savefig('plots/Incompressibility_condition.pdf')
-    #plt.savefig('plots/Incompressibility_condition.png')
-    plt.show()
-    
-    #plt.clf()
-    #plt.figure() 
-    end_time=500 
-    time_interval=np.linspace(0., end_time,solid.shape[0]) 
-    plt.plot(time_interval,C,'k-')
-    ax=plt.axes() 
-    ax.set_xlabel('t')
-    ax.set_ylabel('C(t)')
-    ax.set_title('Incompressibility vs time')
-    plt.savefig('plots/Incompressibility_condition_vs_time.pdf')
-    plt.savefig('plots/Incompressibility_condition_vs_time.png')
+    plt.legend((r'$gu_f+(1-g)u_s$', ))
+    plt.title('Incomressibility expression')
     plt.show()
 
-    
     plt.plot(x_coord, solid_t[time_index])
     plt.plot(x_coord, fluid_t[time_index])
     plt.legend((r'$X_t$',
                 r'$Y_t$'))
     plt.title('Lagrangian Velocities')
     plt.show()
+
 
 plot_densities_and_velocities(SOLUTION, STATEMENT.consts)
 
@@ -433,10 +416,14 @@ def plot_evolution(statement, solution):
         # ax1=fig.gca(projection='3d')
         # ax.plot_surface(X,T,solid,cmap=cm.coolwarm)
         ax1.imshow(solid,
-                   extent=[-domain_half_length, domain_half_length, 0, 10],
+                   extent=[-domain_half_length, domain_half_length,
+                           0, time_interval[-1]],
+                   aspect='auto',
                    origin='lower')
         ax2.imshow(fluid,
-                   extent=[-domain_half_length, domain_half_length, 0, 10],
+                   extent=[-domain_half_length, domain_half_length,
+                           0, time_interval[-1]],
+                   aspect='auto',
                    origin='lower')
         # ax.view_init(90,0)
         ax1.set_xlabel('x')
@@ -446,8 +433,8 @@ def plot_evolution(statement, solution):
         # ax2.set_ylabel('t')
         ax2.set_title('Fluid')
 
-        #plt.savefig('plots/Evolution_XY_incompressible.pdf')
-        #plt.savefig('plots/Evolution_XY_incompressible.png')
+        # plt.savefig('plots/Evolution_XY.pdf')
+        # plt.savefig('plots/Evolution_XY.png')
         plt.show()
 
     plot2d()
@@ -489,8 +476,8 @@ def plot_evolution(statement, solution):
     # plt.set_xlabel('t')
     ax.set_title('Momentum')
     ax.legend(('Solid', 'Fluid', 'Net'))
-    #plt.savefig('plots/All_momenta_incompressible.pdf')
-    #plt.savefig('plots/All_momenta_incompressible.png')
+    plt.savefig('All_momenta.pdf')
+    plt.savefig('All_momenta.png')
     ax.set_xlabel('t')
     ax.set_ylabel(r'$M_s$, $M_f$,$M_s+M_f$')
 
