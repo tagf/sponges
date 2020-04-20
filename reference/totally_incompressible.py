@@ -405,10 +405,14 @@ def plot_evolution(statement, solution):
         # ax1=fig.gca(projection='3d')
         # ax.plot_surface(X,T,solid,cmap=cm.coolwarm)
         ax1.imshow(solid,
-                   extent=[-domain_half_length, domain_half_length, 0, 10],
+                   extent=[-domain_half_length, domain_half_length,
+                           0, time_interval[-1]],
+                   aspect='auto',
                    origin='lower')
         ax2.imshow(fluid,
-                   extent=[-domain_half_length, domain_half_length, 0, 10],
+                   extent=[-domain_half_length, domain_half_length,
+                           0, time_interval[-1]],
+                   aspect='auto',
                    origin='lower')
         # ax.view_init(90,0)
         ax1.set_xlabel('x')
