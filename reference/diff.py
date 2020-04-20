@@ -256,7 +256,11 @@ def time_step(time, y, *args):
                          solid_xt, fluid_xt,
                          delta_solid_t, delta_fluid_t,
                          rho_s, rho_f, g_0)
-    incompr = incompr - incompr.mean(axis=0)
+    #incompr = incompr - incompr.mean(axis=0)
+    denominator=density_s*density_f*g_0/rho_f+(1-density_f*g_0)**2/rho_s
+    B=density_s/denominator 
+    dCdt=-(incompr.mean(axis=0)/B.mean(axis=0))
+    incompr=incompr+dCdt*B
 
     delta_solid_t += incompr * (density_f * -g_0 + 1.)/rho_s
     delta_fluid_t += incompr * density_f/rho_f
@@ -329,11 +333,11 @@ def solve_instance():
         "W": 1.,
         "U": 1.,
     }
-    end_time = 100.
+    end_time = 500.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
-                                                    int(1.024 * end_time)),
+                                                    int(end_time + 1.)),
                           consts=consts)
 
     return statement, solve(statement)
@@ -362,28 +366,51 @@ def plot_densities_and_velocities(solution, args={}):
     plt.show()
 
     # Incomressibility layers, demonstrating C(t)
-    for time_index in range(solid.shape[0] - 1):
+    g_0 = args['g_0']
+    C=np.zeros(solid.shape[0])
+    for time_index in range(solid.shape[0] ):
         u_s = -solid_t[time_index] / (
             partial(solid[time_index], 's')/partial_x + 1.)
         u_f = -fluid_t[time_index] / (
             partial(fluid[time_index], 'f')/partial_x + 1.)
 
         dens_f = partial(fluid[time_index], 'f')/partial_x + 1
+        incompressible_var=g_0*dens_f*u_f + (1 - dens_f*g_0)*u_s
+        C[time_index]=incompressible_var.mean() 
 
-        g_0 = args['g_0']
-        plt.plot(x_coord, g_0*dens_f*u_f + (1 - dens_f*g_0)*u_s)
+        plt.plot(x_coord,incompressible_var)
+    
+    
+    ax=plt.axes() 
+    ax.set_xlabel('x')
+    ax.set_ylabel('Incompressibility')
 
-    plt.legend((r'$gu_f+(1-g)u_s$', ))
-    plt.title('Incomressibility expression')
+    ax.legend((r'$gu_f+(1-g)u_s$', ))
+    ax.set_title('Incompressibility variable')
+    #plt.savefig('plots/Incompressibility_condition.pdf')
+    #plt.savefig('plots/Incompressibility_condition.png')
+    plt.show()
+    
+    #plt.clf()
+    #plt.figure() 
+    end_time=500 
+    time_interval=np.linspace(0., end_time,solid.shape[0]) 
+    plt.plot(time_interval,C,'k-')
+    ax=plt.axes() 
+    ax.set_xlabel('t')
+    ax.set_ylabel('C(t)')
+    ax.set_title('Incompressibility vs time')
+    plt.savefig('plots/Incompressibility_condition_vs_time.pdf')
+    plt.savefig('plots/Incompressibility_condition_vs_time.png')
     plt.show()
 
+    
     plt.plot(x_coord, solid_t[time_index])
     plt.plot(x_coord, fluid_t[time_index])
     plt.legend((r'$X_t$',
                 r'$Y_t$'))
     plt.title('Lagrangian Velocities')
     plt.show()
-
 
 plot_densities_and_velocities(SOLUTION, STATEMENT.consts)
 
@@ -462,8 +489,8 @@ def plot_evolution(statement, solution):
     # plt.set_xlabel('t')
     ax.set_title('Momentum')
     ax.legend(('Solid', 'Fluid', 'Net'))
-    plt.savefig('plots/All_momenta_incompressible.pdf')
-    plt.savefig('plots/All_momenta_incompressible.png')
+    #plt.savefig('plots/All_momenta_incompressible.pdf')
+    #plt.savefig('plots/All_momenta_incompressible.png')
     ax.set_xlabel('t')
     ax.set_ylabel(r'$M_s$, $M_f$,$M_s+M_f$')
 
