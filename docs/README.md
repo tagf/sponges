@@ -2,7 +2,7 @@
 
 ## Notebooks (they are in the same directory as this "readme" file):
 
-[Derivation of formulas using Python Sympy](/sympy_eqs_potential.ipynb)
+[Derivation of formulas using Python Sympy](/sympy_eqs_totally_incompr.html)
 
 [Simulation of symmetric stress in periodic 1D sponge (sneezing) using Python Numpy](/sponges_symmetric_disturbance.ipynb)
 
