@@ -107,38 +107,24 @@ FORMULAS = {
         sympify("(X_x*Y_x*g_0)/rho_f + (1-g_0*Y_x)^2/rho_s")
         ),
 
-    # TODO: Please confirm that the expression
-    # for the pressure term is correct (density_f)!
-    "old_pressure":
-        "param_b * g_0 * density_f "
-        " * (g_0 * laplace_f + (1 - g_0) * laplace_s)",
+    "mu_corr":
+        sympify("X_x / "
+                "(X_x*Y_x*g_0)/rho_f + (g_0*Y_x - 1.)^2/rho_s"),
 
-    "old_sigma_x":
-        '- param_a * density_s * laplace_s'
-        '- param_b'
-        '* (g_0*density_f + (1. - g_0)*density_s)'
-        '* (g_0*laplace_f + (1. - g_0)*laplace_s)',
-
-    "old_p_x_times_g0_Y_x":
+    "p_x_times_g0_Y_x":
         "param_b * g_0 * Y_x "
         " * (g_0*Y_xx + (1 - g_0)*X_xx)",
 
-    "old_sigma_x(X, Y)":
+    "sigma":
+        "- 0.5*param_a*(X_x**2 - 1.) "
+        "- param_b*((X_x*(1 - g_0) + Y_x*g_0)**2 - 1.)",
+
+    "sigma_x":
         '- param_a * X_x * X_xx'
         '- param_b'
         '* (g_0*Y_x + (1. - g_0)*X_x)'
         '* (g_0*Y_xx + (1. - g_0)*X_xx)',
 
-    "new_p_x_times_g0_Y_x":
-        '(g_0 * Y_x) '
-        '* -X_xx*param_a*(X_x - 1.)',
-
-    "new_sigma":
-        "0.5*param_a*(X_x - 1.)*((2.*g_0*Y_x - 1.)*X_x - 1.)",
-
-    "new_sigma_x":
-        'param_a*(Y_xx*X_x*g_0*(X_x - 1.0) '
-        '+ X_xx*((2.0*X_x - 1.0)*(Y_x*g_0 - 0.5) - 0.5))'
         }
 
 
@@ -177,17 +163,21 @@ friction = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['friction'])
 # sigma_x = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['sigma_x'])
 
 pressure = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
-                      FORMULAS['new_p_x_times_g0_Y_x'])
-sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['new_sigma_x'])
-sigma = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['new_sigma'])
+                      FORMULAS['p_x_times_g0_Y_x'])
+sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['sigma_x'])
+sigma = ufunc_expr(SY_ARG_XY + SYMB_CONSTS, FORMULAS['sigma'])
 
 dynamic = ufunc_expr('F_t, F_tx, density, laplace',
                      'F_t / density'
                      ' * (laplace * (F_t / density) - 2*F_tx)')
 
-incompr_mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
-                        'rho_s, rho_f, g_0',
-                        FORMULAS['mu'])
+mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
+                'rho_s, rho_f, g_0',
+                FORMULAS['mu'])
+
+mu_corr = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
+                     'rho_s, rho_f, g_0',
+                     FORMULAS['mu_corr'])
 
 print("Compilation of ufuncs succeeded!")
 
@@ -253,12 +243,19 @@ def time_step(time, y, *args):
                                density_f, laplace_f)
                      + (friction_ + pressure_) / (g_0 * rho_f))
 
-    incompr = incompr_mu(solid_t,
-                         density_s, density_f,
-                         solid_xt, fluid_xt,
-                         delta_solid_t, delta_fluid_t,
-                         rho_s, rho_f, g_0)
-    incompr = incompr - incompr.mean(axis=0)
+    incompr = mu(solid_t,
+                 density_s, density_f,
+                 solid_xt, fluid_xt,
+                 delta_solid_t, delta_fluid_t,
+                 rho_s, rho_f, g_0)
+    incompr_corr = mu_corr(solid_t,
+                           density_s, density_f,
+                           solid_xt, fluid_xt,
+                           delta_solid_t, delta_fluid_t,
+                           rho_s, rho_f, g_0)
+    incompr = incompr - incompr_corr * (
+        incompr.mean(axis=0) / incompr_corr.mean(axis=0)
+        )
 
     delta_solid_t += incompr * (density_f * -g_0 + 1.)/rho_s
     delta_fluid_t += incompr * density_f/rho_f
@@ -323,15 +320,15 @@ def solve_instance():
         "rho_s": 1.,
         "rho_f": 1.,
         "g_0": 0.8,
-        "K": 1,
-        "param_a": 1.,
-        "param_b": 1.0,
+        "K": 1.,
+        "param_a": 1.0,
+        "param_b": 0.0,
         "S_0": 0.1,
         "nu": 0.0,
         "W": 1.,
         "U": 1.,
     }
-    end_time = 50.
+    end_time = 250.
     statement = Statement(number_of_intervals=128,
                           domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
