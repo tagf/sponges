@@ -13077,9 +13077,9 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="This-code-represents-how-we-checked-pressure-and-sigma-terms-using-Sympy,">This code represents how we checked pressure and sigma terms using Sympy,<a class="anchor-link" href="#This-code-represents-how-we-checked-pressure-and-sigma-terms-using-Sympy,">&#182;</a></h2><p>in the current version, we agreed, that for the incompressible case we use the potential where only alpha term is present, and 
-in addition there could be beta term, for compressible case.
-Sometimes I drop gamma term in the computation to deliver the results, but initially V contains the it in the linear combination.</p>
+<h3 id="This-code-represents-how-we-checked-pressure-and-sigma-terms-using-Sympy,-and-derived-mu_x.">This code represents how we checked pressure and sigma terms using Sympy, and derived mu_x.<a class="anchor-link" href="#This-code-represents-how-we-checked-pressure-and-sigma-terms-using-Sympy,-and-derived-mu_x.">&#182;</a></h3><p>We agreed, that for the incompressible case we use the potential where only alpha term is present, and 
+in addition there could be the beta term (pore volume change), for compressible case.
+Sometimes I drop gamma term in the computation to deliver the results, but initially V(b,v) is a linear combination of 3 terms, that contains gamma as well, because it was one of the the models we initially considered.</p>
 
 </div>
 </div>
@@ -13180,7 +13180,7 @@ Sometimes I drop gamma term in the computation to deliver the results, but initi
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[5]:</div>
+<div class="prompt input_prompt">In&nbsp;[3]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Original equations</span>
@@ -13329,60 +13329,14 @@ $ \partial_{x} P = X_{xx} \left. \frac{\partial}{\partial \xi} P{\left(\xi,Y_{x}
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[6]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">incomr_explore</span><span class="p">():</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Total incompressibility:&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;DON&#39;T WORRY about missing braces after partials x,</span><span class="se">\n</span><span class="s2">it&#39;s solely a sympy representation bug):&quot;</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">eq_incompr</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">u_f</span><span class="p">,</span> <span class="n">u_s</span><span class="p">):</span> <span class="k">return</span> <span class="n">sy</span><span class="o">.</span><span class="n">Eq</span><span class="p">(</span><span class="n">sy</span><span class="o">.</span><span class="n">Derivative</span><span class="p">(</span><span class="n">sympify</span><span class="p">(</span><span class="s1">&#39;( A ) * 1&#39;</span><span class="p">,</span> <span class="n">evaluate</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span> <span class="n">x</span>
-                                                           <span class="p">)</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">sympify</span><span class="p">(</span><span class="s1">&#39;A&#39;</span><span class="p">),</span> <span class="n">g</span><span class="o">*</span><span class="n">u_f</span><span class="p">,</span> <span class="n">evaluate</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
-                                              <span class="o">-</span><span class="n">sy</span><span class="o">.</span><span class="n">Derivative</span><span class="p">(((</span><span class="mi">1</span><span class="o">-</span><span class="n">g</span><span class="p">)</span><span class="o">*</span><span class="n">u_s</span><span class="p">),</span> <span class="n">x</span><span class="p">))</span>
-    <span class="n">print_eqn</span><span class="p">(</span><span class="n">eq_incompr</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">u_f</span><span class="p">,</span> <span class="n">u_s</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
-
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;After substitutions:&quot;</span><span class="p">)</span>
-    <span class="n">print_eqn</span><span class="p">(</span><span class="n">eq_incompr</span><span class="p">(</span><span class="n">g_</span><span class="p">,</span> <span class="n">u_f_</span><span class="p">,</span> <span class="n">u_s_</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
-    <span class="n">print_eqn</span><span class="p">(</span><span class="n">eq_incompr</span><span class="p">(</span><span class="n">g_</span><span class="p">,</span> <span class="n">u_f_</span><span class="p">,</span> <span class="n">u_s_</span><span class="p">)</span><span class="o">.</span><span class="n">doit</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Multipled by X_x**2:&quot;</span><span class="p">)</span>
-    <span class="n">print_eqn</span><span class="p">(</span><span class="n">sy</span><span class="o">.</span><span class="n">Eq</span><span class="p">((</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> 
-                    <span class="p">(</span><span class="n">eq_incompr</span><span class="p">(</span><span class="n">g_</span><span class="p">,</span> <span class="n">u_f_</span><span class="p">,</span> <span class="n">u_s_</span><span class="p">)</span><span class="o">.</span><span class="n">doit</span><span class="p">()</span><span class="o">.</span><span class="n">lhs</span> <span class="o">+</span> <span class="n">g_0</span><span class="o">*</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">)</span><span class="o">*</span><span class="n">Y</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span><span class="o">/</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">))),</span>
-                    <span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> 
-                     <span class="p">(</span><span class="n">eq_incompr</span><span class="p">(</span><span class="n">g_</span><span class="p">,</span> <span class="n">u_f_</span><span class="p">,</span> <span class="n">u_s_</span><span class="p">)</span><span class="o">.</span><span class="n">doit</span><span class="p">()</span><span class="o">.</span><span class="n">rhs</span> <span class="o">+</span> <span class="n">g_0</span><span class="o">*</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">)</span><span class="o">*</span><span class="n">Y</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span><span class="o">/</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
-                    <span class="p">)</span>
-                   <span class="p">)</span><span class="o">.</span><span class="n">simplify</span><span class="p">()</span>
-             <span class="p">)</span>
-
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;In our paper&quot;</span><span class="p">)</span>
-    <span class="n">print_eqn</span><span class="p">(</span><span class="n">sy</span><span class="o">.</span><span class="n">Eq</span><span class="p">(</span><span class="n">g_0</span> <span class="o">*</span> <span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">Y</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">g_0</span> <span class="o">*</span> <span class="n">Y</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="o">*</span> <span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;- Partial wrt x&quot;</span><span class="p">)</span>
-    <span class="n">print_eqn</span><span class="p">(</span><span class="n">sy</span><span class="o">.</span><span class="n">Eq</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">g_0</span> <span class="o">*</span> <span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">Y</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">g_0</span> <span class="o">*</span> <span class="n">Y</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="o">*</span> <span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">))</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span>
-
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;It seems that it should be &quot;</span><span class="p">)</span>
-    <span class="n">eq_incompr_correct</span> <span class="o">=</span> <span class="n">sy</span><span class="o">.</span><span class="n">Eq</span><span class="p">(</span>
-        <span class="o">-</span><span class="n">g_0</span> <span class="o">*</span> <span class="n">sy</span><span class="o">.</span><span class="n">Derivative</span><span class="p">(</span><span class="n">Y</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">)</span><span class="o">/</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">3</span><span class="p">,</span>
-        <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">g_</span><span class="p">)</span><span class="o">*</span><span class="n">sy</span><span class="o">.</span><span class="n">Derivative</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t</span><span class="p">)</span><span class="o">/</span><span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
-    <span class="p">)</span>
-    <span class="n">print_eqn</span><span class="p">(</span><span class="n">eq_incompr_correct</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Partial wrt x&quot;</span><span class="p">)</span>
-    <span class="n">print_eqn</span><span class="p">(</span><span class="n">sy</span><span class="o">.</span><span class="n">Eq</span><span class="p">((</span><span class="n">eq_incompr_correct</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">doit</span><span class="p">())</span><span class="o">.</span><span class="n">simplify</span><span class="p">(),</span>
-                    <span class="p">(</span><span class="n">eq_incompr_correct</span><span class="o">.</span><span class="n">rhs</span><span class="o">.</span><span class="n">doit</span><span class="p">())</span><span class="o">.</span><span class="n">simplify</span><span class="p">())</span>
-             <span class="p">)</span>
-</pre></div>
-
-    </div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[7]:</div>
+<div class="prompt input_prompt">In&nbsp;[4]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Total incompressibility w.r.t. Time</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Total incompressibility.&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;DON&#39;T WORRY about missing braces after partial differential operators,</span><span class="se">\n</span><span class="s2">it&#39;s solely a sympy representation bug):&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">incompr_t</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">u_f</span><span class="p">,</span> <span class="n">u_s</span><span class="p">):</span> <span class="k">return</span> <span class="n">sy</span><span class="o">.</span><span class="n">Eq</span><span class="p">(</span><span class="n">sy</span><span class="o">.</span><span class="n">Derivative</span><span class="p">(</span><span class="n">g</span><span class="o">*</span><span class="n">u_f</span><span class="p">,</span> <span class="n">t</span><span class="p">),</span>
-                                          <span class="o">-</span><span class="n">sy</span><span class="o">.</span><span class="n">Derivative</span><span class="p">(((</span><span class="mi">1</span><span class="o">-</span><span class="n">g</span><span class="p">)</span><span class="o">*</span><span class="n">u_s</span><span class="p">),</span> <span class="n">t</span><span class="p">))</span>
+                                          <span class="o">-</span><span class="n">sy</span><span class="o">.</span><span class="n">Derivative</span><span class="p">(((</span><span class="mi">1</span><span class="o">-</span><span class="n">g</span><span class="p">)</span><span class="o">*</span><span class="n">u_s</span> <span class="o">-</span> <span class="n">sympify</span><span class="p">(</span><span class="s1">&#39;C(t)&#39;</span><span class="p">)),</span> <span class="n">t</span><span class="p">))</span>
 
 <span class="n">print_eqn</span><span class="p">(</span><span class="n">incompr_t</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">u_f</span><span class="p">,</span> <span class="n">u_s</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
 
@@ -13432,10 +13386,23 @@ $ \partial_{x} P = X_{xx} \left. \frac{\partial}{\partial \xi} P{\left(\xi,Y_{x}
     <div class="prompt"></div>
 
 
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Total incompressibility.
+DON&#39;T WORRY about missing braces after partial differential operators,
+it&#39;s solely a sympy representation bug):
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
 
 
 <div class="output_latex output_subarea ">
-$ \frac{\partial}{\partial t} g \operatorname{u_{f}}{\left(x,t \right)} = - \frac{\partial}{\partial t} \left(1 - g\right) \operatorname{u_{s}}{\left(x,t \right)}$
+$ \frac{\partial}{\partial t} g \operatorname{u_{f}}{\left(x,t \right)} = - \frac{\partial}{\partial t} \left(\left(1 - g\right) \operatorname{u_{s}}{\left(x,t \right)} - C{\left(t \right)}\right)$
 </div>
 
 </div>
@@ -13459,7 +13426,7 @@ $ \frac{\partial}{\partial t} g \operatorname{u_{f}}{\left(x,t \right)} = - \fra
 
 
 <div class="output_latex output_subarea ">
-$ \frac{\partial}{\partial t} - Y_{t} g_{0} = - \frac{\partial}{\partial t} - \frac{X_{t} \left(- Y_{x} g_{0} + 1\right)}{X_{x}}$
+$ \frac{\partial}{\partial t} - Y_{t} g_{0} = - \frac{\partial}{\partial t} \left(- \frac{X_{t} \left(- Y_{x} g_{0} + 1\right)}{X_{x}} - C{\left(t \right)}\right)$
 </div>
 
 </div>
@@ -13472,7 +13439,7 @@ $ \frac{\partial}{\partial t} - Y_{t} g_{0} = - \frac{\partial}{\partial t} - \f
 
 
 <div class="output_latex output_subarea ">
-$ - Y_{tt} g_{0} = - \frac{X_{t} Y_{xt} g_{0}}{X_{x}} - \frac{X_{t} X_{xt} \left(- Y_{x} g_{0} + 1\right)}{X_{x}^{2}} + \frac{X_{tt} \left(- Y_{x} g_{0} + 1\right)}{X_{x}}$
+$ - Y_{tt} g_{0} = - \frac{X_{t} Y_{xt} g_{0}}{X_{x}} - \frac{X_{t} X_{xt} \left(- Y_{x} g_{0} + 1\right)}{X_{x}^{2}} + \frac{X_{tt} \left(- Y_{x} g_{0} + 1\right)}{X_{x}} + \frac{d}{d t} C{\left(t \right)}$
 </div>
 
 </div>
@@ -13533,7 +13500,7 @@ $ Y_{tt} = R_{Y} + \frac{Y_{x} \frac{\partial}{\partial x} \mu{\left(x,t \right)
 
 
 <div class="output_latex output_subarea ">
-$ - g_{0} \left(R_{Y} + \frac{Y_{x} \mu_{x}}{\rho_{f}}\right) = - \frac{X_{t} Y_{xt} g_{0}}{X_{x}} - \frac{X_{t} X_{xt} \left(- Y_{x} g_{0} + 1\right)}{X_{x}^{2}} + \frac{\left(R_{X} + \frac{\mu_{x} \left(- Y_{x} g_{0} + 1\right)}{\rho^{0}_{s}}\right) \left(- Y_{x} g_{0} + 1\right)}{X_{x}}$
+$ - g_{0} \left(R_{Y} + \frac{Y_{x} \mu_{x}}{\rho_{f}}\right) = - \frac{X_{t} Y_{xt} g_{0}}{X_{x}} - \frac{X_{t} X_{xt} \left(- Y_{x} g_{0} + 1\right)}{X_{x}^{2}} + \frac{d}{d t} C{\left(t \right)} + \frac{\left(R_{X} + \frac{\mu_{x} \left(- Y_{x} g_{0} + 1\right)}{\rho^{0}_{s}}\right) \left(- Y_{x} g_{0} + 1\right)}{X_{x}}$
 </div>
 
 </div>
@@ -13557,7 +13524,7 @@ $ - g_{0} \left(R_{Y} + \frac{Y_{x} \mu_{x}}{\rho_{f}}\right) = - \frac{X_{t} Y_
 
 
 <div class="output_latex output_subarea ">
-$ \frac{\mu_{x} \left(- X_{x} Y_{x} g_{0} \rho^{0}_{s} + \rho_{f} \left(- Y_{x}^{2} g_{0}^{2} + 2 Y_{x} g_{0} - 1\right)\right)}{\rho_{f} \rho^{0}_{s}} = R_{X} \left(- Y_{x} g_{0} + 1\right) + R_{Y} X_{x} g_{0} - X_{t} Y_{xt} g_{0} + \frac{X_{t} X_{xt} Y_{x} g_{0}}{X_{x}} - \frac{X_{t} X_{xt}}{X_{x}}$
+$ \frac{\mu_{x} \left(- X_{x} Y_{x} g_{0} \rho^{0}_{s} + \rho_{f} \left(- Y_{x}^{2} g_{0}^{2} + 2 Y_{x} g_{0} - 1\right)\right)}{\rho_{f} \rho^{0}_{s}} = R_{X} \left(- Y_{x} g_{0} + 1\right) + R_{Y} X_{x} g_{0} - X_{t} Y_{xt} g_{0} + \frac{X_{t} X_{xt} Y_{x} g_{0}}{X_{x}} - \frac{X_{t} X_{xt}}{X_{x}} + X_{x} \frac{d}{d t} C{\left(t \right)}$
 </div>
 
 </div>
@@ -13568,7 +13535,7 @@ $ \frac{\mu_{x} \left(- X_{x} Y_{x} g_{0} \rho^{0}_{s} + \rho_{f} \left(- Y_{x}^
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[18]:</div>
+<div class="prompt input_prompt">In&nbsp;[5]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">rho_s</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
@@ -13658,7 +13625,7 @@ $ V{\left(\frac{1}{\sqrt{b}},\frac{c_{0} v}{\sqrt{b} g_{0}} \right)} = \frac{\al
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[33]:</div>
+<div class="prompt input_prompt">In&nbsp;[6]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">collect</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="n">symbols</span><span class="p">):</span>
@@ -13850,7 +13817,7 @@ $ \frac{\partial}{\partial x} \sigma_{e}{\left(x,t \right)} = - X_{x} X_{xx} \al
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[35]:</div>
+<div class="prompt input_prompt">In&nbsp;[7]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Different representations of gamma term in partial sigma_e&#39;</span><span class="p">)</span>
@@ -13927,7 +13894,7 @@ $ X_{xx} \left(- X_{x} \alpha - X_{x} \beta g_{0}^{2} + 2 X_{x} \beta g_{0} - X_
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[36]:</div>
+<div class="prompt input_prompt">In&nbsp;[8]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Finally, let&#39;s compute the pressure, using the potential&quot;</span><span class="p">)</span>
