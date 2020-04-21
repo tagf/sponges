@@ -109,7 +109,8 @@ FORMULAS = {
 
     "mu_corr":
         sympify("X_x / "
-                "(X_x*Y_x*g_0)/rho_f + (g_0*Y_x - 1.)^2/rho_s"),
+                "((X_x*Y_x*g_0)/rho_f"
+                "+ (g_0*Y_x - 1.)^2/rho_s)"),
 
     "p_x_times_g0_Y_x":
         "param_b * g_0 * Y_x "
@@ -142,6 +143,8 @@ SYMB_CONSTS = sy.symbols('rho_s, rho_f, g_0, K, '
                          'param_a, param_b, S_0, nu, W, U,'
                          'domain_half_length')
 
+# %% Interactive questions
+
 stress = None
 END_TIME = 0.
 version = input("Please enter which stress to compile:\n"
@@ -164,8 +167,11 @@ end_time_new = input("Current END_TIME=%g. Enter new time\n"
 if len(end_time_new):
     END_TIME = float(end_time_new)
 
+print("friction" not in globals())
+print("friction" not in locals())
 
-if "friction" not in locals():
+
+if "friction" not in globals():
     print("Compilation of ufuncs started...")
     global friction, pressure, sigma_x, sigma, mu, mu_corr, dynamic
     friction = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['friction'])
@@ -330,11 +336,11 @@ def solve_instance():
     consts = {
         "rho_s": 1.,
         "rho_f": 1.,
-        "g_0": 0.8,
+        "g_0": 0.4,
         "K": 1.,
         "param_a": 1.0,
         "param_b": 0.0,
-        "S_0": 0.2,
+        "S_0": 0.1,
         "nu": 0.0,
         "W": 1.,
         "U": 1.,
