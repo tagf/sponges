@@ -17,21 +17,6 @@ from sympy.utilities.autowrap import ufuncify
 
 
 # %% Technical and term definitions
-
-def ufunc_expr(symbols, formula):
-    """Ufuncify the formula with symbols as arguments using numpy backend.
-
-    Example: foo = ufunc_expr('x y', 'x % y')
-    """
-    if isinstance(symbols, str):
-        symbols = sy.symbols(symbols)
-    if isinstance(formula, str):
-        formula = sympify(formula)
-    return ufuncify(symbols, formula,
-                    backend='numpy',
-                    flags=['-D_USE_MATH_DEFINES'])
-
-
 def partial(array, bc='s'):
     """Compute central discrete differences.
 
@@ -76,9 +61,23 @@ def partial2(array, bc='s'):
     return result
 
 
+PROBLEM_CONSTS = {
+    "rho_s": 1.,
+    "rho_f": 1.,
+    "g_0": 0.9,
+    "K": 1,
+    "param_a": 1.0,
+    "param_b": 0,
+    "S_0": 0.4,
+    "nu": 0.0,
+    "W": 1.,
+    "U": 1.,
+    "domain_half_length": 4.
+}
+
 FORMULAS = {
     "friction":
-        "K * (solid_t / density_s - fluid_t / density_f)",
+        sympify("K * (solid_t / density_s - fluid_t / density_f)"),
 
 
     "stress_tv":
@@ -113,20 +112,38 @@ FORMULAS = {
                 "+ (g_0*Y_x - 1.)^2/rho_s)"),
 
     "p_x_times_g0_Y_x":
-        "param_b * g_0 * Y_x "
-        " * (g_0*Y_xx + (1 - g_0)*X_xx)",
+        sympify("param_b * g_0 * Y_x "
+                " * (g_0*Y_xx + (1. - g_0)*X_xx)"),
 
     "sigma":
-        "- 0.5*param_a*(X_x**2 - 1.) "
-        "- param_b*((X_x*(1 - g_0) + Y_x*g_0)**2 - 1.)",
+        sympify("- 0.5*param_a*(X_x**2 - 1.) "
+                "- param_b*((X_x*(1. - g_0) + Y_x*g_0)**2 - 1.)"),
 
     "sigma_x":
-        '- param_a * X_x * X_xx'
-        '- param_b'
-        '* (g_0*Y_x + (1. - g_0)*X_x)'
-        '* (g_0*Y_xx + (1. - g_0)*X_xx)',
+        sympify('- param_a * X_x * X_xx'
+                '- param_b'
+                '* (g_0*Y_x + (1. - g_0)*X_x)'
+                '* (g_0*Y_xx + (1. - g_0)*X_xx)'),
 
-        }
+}
+
+
+def ufunc_expr(symbols, formula, consts=PROBLEM_CONSTS):
+    """Ufuncify the formula with symbols as arguments using numpy backend.
+
+    Example: foo = ufunc_expr('x y', 'x % y')
+    """
+    if isinstance(symbols, str):
+        symbols = sy.symbols(symbols)
+    if isinstance(formula, str):
+        formula = sympify(formula)
+    if consts is not None:
+        formula = formula.subs(
+            [(sy.Symbol(k), v) for k, v in consts.items()]
+            )
+    return ufuncify(symbols, formula,
+                    backend='numpy',
+                    flags=['-D_USE_MATH_DEFINES'])
 
 
 # Variable names
@@ -134,60 +151,54 @@ SYMB_ARGS = sy.symbols("time, x_coord, "
                        "solid, solid_t, density_s, laplace_s,"
                        "fluid, fluid_t, density_f, laplace_f")
 
+# Alternative variable names
 SY_ARG_XY = sy.symbols("t, x, "
                        "xi, X_t, X_x, X_xx,"
                        "eta, Y_t, Y_x, Y_xx")
 
-# Constant names
-SYMB_CONSTS = sy.symbols('rho_s, rho_f, g_0, K, '
-                         'param_a, param_b, S_0, nu, W, U,'
-                         'domain_half_length')
-
 # %% Interactive questions
 
 stress = None
-END_TIME = 0.
+
 version = input("Please enter which stress to compile:\n"
                 "'sponge' or 'tv'? >>>")
-if version == 'sponge':
-    print("You've selected sponge stress")
-    stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_sponge'])
-    END_TIME = 8.
-elif version == 'tv':
+STRESS_TYPE = None
+END_TIME = None
+if version == 'tv':
     print("You've selected traveling wave stress")
-    stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_tv'])
+    STRESS_TYPE = 'stress_tv'
     END_TIME = 50.
+elif version == 'sponge':
+    print("You've selected sponge stress")
+    STRESS_TYPE = 'stress_sponge'
+    END_TIME = 10.
 else:
-    print("Your selection was not recognized, assuming sponge")
-    stress = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['stress_sponge'])
-    END_TIME = 8.
+    print("Your selection was not recognized, assuming TV.")
 
 end_time_new = input("Current END_TIME=%g. Enter new time\n"
                      "or keep current (press enter) >>>" % END_TIME)
 if len(end_time_new):
     END_TIME = float(end_time_new)
 
-print("friction" not in globals())
-print("friction" not in locals())
 
-
-if "friction" not in globals():
+RECOMPILE_UFUNCS = True
+if RECOMPILE_UFUNCS:
     print("Compilation of ufuncs started...")
     global friction, pressure, sigma_x, sigma, mu, mu_corr, dynamic
-    friction = ufunc_expr(SYMB_ARGS + SYMB_CONSTS, FORMULAS['friction'])
-    pressure = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
+    friction = ufunc_expr(SYMB_ARGS, FORMULAS['friction'])
+    pressure = ufunc_expr(SY_ARG_XY,
                           FORMULAS['p_x_times_g0_Y_x'])
-    sigma_x = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
+    sigma_x = ufunc_expr(SY_ARG_XY,
                          FORMULAS['sigma_x'])
-    sigma = ufunc_expr(SY_ARG_XY + SYMB_CONSTS,
+    sigma = ufunc_expr(SY_ARG_XY,
                        FORMULAS['sigma'])
 
-    mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
-                    'rho_s, rho_f, g_0',
+    stress = ufunc_expr(SYMB_ARGS, FORMULAS[STRESS_TYPE])
+
+    mu = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y',
                     FORMULAS['mu'])
 
-    mu_corr = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y, '
-                         'rho_s, rho_f, g_0',
+    mu_corr = ufunc_expr('X_t, X_x, Y_x, X_xt, Y_xt, R_X, R_Y',
                          FORMULAS['mu_corr'])
 
     dynamic = ufunc_expr('F_t, F_tx, density, laplace',
@@ -208,12 +219,16 @@ if DIFF_SIGMA_TO_CRASH:
 def time_step(time, y, *args):
     """Compute one time step."""
     # pylint: disable=R0914
-    solid, solid_t, fluid, fluid_t = np.split(y, 4)
     x_coord = np.broadcast_to(args[0].reshape(-1, 1),
                               (args[0].size, y.shape[1]))
-    domain_half_length = x_coord[-1, 0]
+
+    solid, solid_t, fluid, fluid_t = np.split(y, 4)
+
+    (rho_s, rho_f, g_0, K, param_a, param_b,
+     S_0, nu, W, U, domain_half_length) = args[1]
+
+    # domain_half_length = x_coord[-1, 0]
     partial_x = 2.*domain_half_length/(x_coord.size - 1)
-    (rho_s, rho_f, g_0, K, param_a, param_b, S_0, nu, W, U) = args[1]
 
     def apply_(arr, func, bc='s'):
         cols = range(arr.shape[1])
@@ -228,9 +243,7 @@ def time_step(time, y, *args):
                   solid, solid_t, density_s, laplace_s,
                   fluid, fluid_t, density_f, laplace_f)
 
-    problem_consts = (rho_s, rho_f, g_0, K,
-                      param_a, param_b, S_0, nu, W, U,
-                      domain_half_length)
+    problem_consts = ()
 
     friction_ = friction(*(layer_data + problem_consts))
     pressure_ = pressure(*(layer_data + problem_consts))
@@ -263,13 +276,11 @@ def time_step(time, y, *args):
     incompr = mu(solid_t,
                  density_s, density_f,
                  solid_xt, fluid_xt,
-                 delta_solid_t, delta_fluid_t,
-                 rho_s, rho_f, g_0)
+                 delta_solid_t, delta_fluid_t)
     incompr_corr = mu_corr(solid_t,
                            density_s, density_f,
                            solid_xt, fluid_xt,
-                           delta_solid_t, delta_fluid_t,
-                           rho_s, rho_f, g_0)
+                           delta_solid_t, delta_fluid_t)
     incompr = incompr - incompr_corr * (
         incompr.mean(axis=0) / incompr_corr.mean(axis=0)
         )
@@ -287,7 +298,6 @@ def time_step(time, y, *args):
 
 Statement = namedtuple('ProblemStatement',
                        ["number_of_intervals",
-                        "domain_half_length",
                         "time_interval",
                         "consts"])
 
@@ -298,9 +308,9 @@ Solution = namedtuple('ProblemSolution',
 def solve(problem_statement):
     """Solve PDE by reduction to IVP for ODE."""
     (number_of_intervals,
-     domain_half_length,
      time_interval,
      consts) = problem_statement
+    domain_half_length = consts["domain_half_length"]
     x_coordinate = np.linspace(-domain_half_length,
                                domain_half_length,
                                number_of_intervals + 1)
@@ -330,24 +340,11 @@ def solve(problem_statement):
                     *np.split(result.y.T, 4, axis=1))
 
 
-def solve_instance():
+def solve_instance(consts):
     """Solve problem instance."""
     # pylint: disable=W0612
-    consts = {
-        "rho_s": 1.,
-        "rho_f": 1.,
-        "g_0": 0.4,
-        "K": 1.,
-        "param_a": 1.0,
-        "param_b": 0.0,
-        "S_0": 0.1,
-        "nu": 0.0,
-        "W": 1.,
-        "U": 1.,
-    }
     end_time = END_TIME
     statement = Statement(number_of_intervals=128,
-                          domain_half_length=4.,
                           time_interval=np.linspace(0., end_time,
                                                     int(end_time + 1.)),
                           consts=consts)
@@ -355,7 +352,7 @@ def solve_instance():
     return statement, solve(statement)
 
 
-STATEMENT, SOLUTION = solve_instance()
+STATEMENT, SOLUTION = solve_instance(PROBLEM_CONSTS)
 
 # %%
 
@@ -408,7 +405,8 @@ plot_densities_and_velocities(SOLUTION, STATEMENT.consts)
 
 def plot_evolution(statement, solution):
     """Plot time dynamics."""
-    number_of_intervals, domain_half_length, time_interval, _ = statement
+    number_of_intervals, time_interval, consts = statement
+    domain_half_length = consts["domain_half_length"]
     x_coord, solid, solid_t, fluid, fluid_t = solution
     partial_x = (x_coord[-1] - x_coord[0])/(x_coord.size - 1)
 
